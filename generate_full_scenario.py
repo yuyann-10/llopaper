@@ -118,29 +118,31 @@ def main():
     land = solve_lander()
     ldo, vc = build_ldo()
 
-    fig, (ax, axz) = plt.subplots(1, 2, figsize=(15, 6.2),
-                                  gridspec_kw={'width_ratios': [1.55, 1]})
-
-    # ===== 左: 全任务 (地月旋转系) =====
-    ax.add_patch(plt.Circle(EARTH, R_E/D_EM, color='steelblue', zorder=6, label='Earth'))
-    ax.add_patch(plt.Circle(MOON, R_M/D_EM, color='0.6', zorder=6, label='Moon'))
-    ax.plot(y_fr[0,:ip+1], y_fr[1,:ip+1], color='royalblue', lw=1.8, label='Crew free-return: outbound')
-    ax.plot(y_fr[0,ip:], y_fr[1,ip:], color='crimson', lw=1.6, label='Crew free-return: return')
     yl = None
     if land is not None:
         tl, yl, th, dv1 = land
         loi = abs(np.hypot(yl[2,-1], yl[3,-1]) - vc)*VU
-        ax.plot(yl[0], yl[1], color='darkorange', lw=1.8, label='Lander outbound (Earth->LDO)')
         print(f"着陆器: dv1={dv1*VU:.4f} km/s, TOF={tl[-1]*TU_S/86400:.3f} d, "
               f"近月点={np.hypot(yl[0,-1]-MOON[0],yl[1,-1])*D_EM-R_M:.1f} km, LOI≈{loi:.3f} km/s")
     else:
         print("[warn] 着陆器去程未收敛")
+
+    # ===== 图(一): 全任务 (地月旋转系) — 独立成图, 无标题 =====
+    fig, ax = plt.subplots(figsize=(8, 6.6))
+    ax.add_patch(plt.Circle(EARTH, R_E/D_EM, color='steelblue', zorder=6, label='Earth'))
+    ax.add_patch(plt.Circle(MOON, R_M/D_EM, color='0.6', zorder=6, label='Moon'))
+    ax.plot(y_fr[0,:ip+1], y_fr[1,:ip+1], color='royalblue', lw=1.8, label='Crew free-return: outbound')
+    ax.plot(y_fr[0,ip:], y_fr[1,ip:], color='crimson', lw=1.6, label='Crew free-return: return')
+    if yl is not None:
+        ax.plot(yl[0], yl[1], color='darkorange', lw=1.8, label='Lander outbound (Earth->LDO)')
     ax.scatter(y_fr[0,ip], y_fr[1,ip], c='red', s=90, marker='*', zorder=7, label='Perilune (1st RVD)')
     ax.set_aspect('equal'); ax.set_xlabel('x (DU)'); ax.set_ylabel('y (DU)')
-    ax.set_title('(a) Full mission (CR3BP rotating frame)')
-    ax.legend(loc='upper left', fontsize=8.5); ax.grid(alpha=0.3)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.13), ncol=2, fontsize=13); ax.grid(alpha=0.3)
+    fig.tight_layout(); fig.savefig('fig_full_scenario.png', dpi=200, bbox_inches='tight')
+    print("[saved] fig_full_scenario.png")
 
-    # ===== 右: 近月放大 (独立子图) =====
+    # ===== 图(二): 近月放大 — 独立成图, 无标题 =====
+    fig2, axz = plt.subplots(figsize=(7.5, 6.6))
     axz.add_patch(plt.Circle(MOON, R_M/D_EM, color='0.6', zorder=6, label='Moon'))
     axz.plot(ldo[0], ldo[1], color='seagreen', lw=2, label='Target LDO (100 km)')
     axz.plot(y_fr[0], y_fr[1], color='royalblue', lw=1.4, label='Crew free-return')
@@ -150,13 +152,10 @@ def main():
     vr = 6000/D_EM
     axz.set_xlim(MOON[0]-vr, MOON[0]+vr); axz.set_ylim(-vr, vr); axz.set_aspect('equal')
     axz.set_xlabel('x (DU)'); axz.set_ylabel('y (DU)')
-    axz.set_title('(b) Zoom at Moon: LDO + perilune RVD')
-    axz.legend(loc='upper right', fontsize=8); axz.grid(alpha=0.3)
-
-    fig.suptitle('Two-RVD manned lunar mission reproduced in CR3BP (paper parameters)', fontsize=13)
-    fig.tight_layout(); fig.savefig('fig_full_scenario.png', dpi=200)
+    axz.legend(loc='upper center', bbox_to_anchor=(0.5, -0.13), ncol=2, fontsize=13); axz.grid(alpha=0.3)
+    fig2.tight_layout(); fig2.savefig('fig_full_scenario_zoom.png', dpi=200, bbox_inches='tight')
     print(f"载人自由返回: 往返 {T_round:.3f} d, 近月点 {np.hypot(y_fr[0,ip]-MOON[0],y_fr[1,ip])*D_EM-R_M:.1f} km")
-    print("[saved] fig_full_scenario.png")
+    print("[saved] fig_full_scenario_zoom.png")
 
 
 if __name__ == "__main__":
