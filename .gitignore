@@ -1,0 +1,10 @@
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 数据文件
+*.npz
+*.npy
+
+# 临时文件
+.~lock.*
