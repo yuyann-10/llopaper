@@ -61,8 +61,9 @@ def build_full(vy_p):
     alt, ip, tb, yb = perigee_alt(vy_p, full=True)
     # 去程: 近地点 -> 近月点 (时间正序)
     yo = yb[:, :ip+1][:, ::-1]; to = (-tb[:ip+1][::-1]); to -= to[0]
-    # 返程: 镜像 (y,vx 取负)
-    yr = np.vstack([yo[0,1:], -yo[1,1:], -yo[2,1:], yo[3,1:]])
+    # 返程: 出段镜像(y,vx取负) 且【反转顺序】-> 近月点->近地点, 与出段平滑续接 (跳过近月点重复)
+    yo_rev = yo[:, ::-1]
+    yr = np.vstack([yo_rev[0,1:], -yo_rev[1,1:], -yo_rev[2,1:], yo_rev[3,1:]])
     tr = to[1:] + to[-1]
     return np.concatenate([to, tr]), np.concatenate([yo, yr], axis=1), to[-1]
 

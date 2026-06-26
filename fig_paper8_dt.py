@@ -26,9 +26,7 @@ Pp = np.where(P > 0, P, floor)
 imax = int(np.argmax(P))
 
 fig, ax = plt.subplots(figsize=(8, 4.8))
-if P_lo is not None and P_hi is not None:
-    Plo = np.where(P_lo > 0, P_lo, floor); Phi = np.where(P_hi > 0, P_hi, floor)
-    ax.fill_between(dt, Plo, Phi, alpha=0.22, color='C3', label='95% CI (bootstrap)')
+# (bootstrap CI 在低概率段因对数坐标视觉过宽，已省略)
 ax.plot(dt, Pp, '-o', color='C3', ms=5, lw=1.6, label='Collision probability')
 zero = P == 0
 if zero.any():
@@ -43,13 +41,12 @@ for x, lbl, c in [(mrvd,'1st RVD ($\\Delta t=0$)','C0'),
     ax.text(x+0.15, ax.get_ylim()[1] if ax.get_yscale()=='linear' else Pp.max()*1.5,
             lbl, rotation=90, va='top', ha='left', fontsize=8, color=c)
 
-# 峰标注
-ax.annotate(f'peak  $\\Delta t$ = {dt[imax]:.1f} d\n$P$ = {P[imax]:.2e}',
-            (dt[imax], Pp[imax]), xytext=(15, 5), textcoords='offset points',
-            fontsize=9, color='C3', arrowprops=dict(arrowstyle='->', color='C3'))
+# 峰标注 (直接文字, 不用箭头)
+ax.text(dt[imax]+0.4, Pp[imax]*1.6, f'peak: $\Delta t$={dt[imax]:.1f} d\n$P$={P[imax]:.2e}',
+        fontsize=9, color='C3', va='bottom')
 
 ax.set_yscale('log')
-ax.set_xlabel('Warning time  $\\Delta t$  = breakup → 1st RVD  (days)')
+ax.set_xlabel('$\Delta t$  (breakup to 1st RVD, days)')
 ax.set_ylabel('Collision probability  $P$')
 ax.grid(alpha=0.3, which='both'); ax.legend(fontsize=8, loc='lower right')
 fig.tight_layout()
