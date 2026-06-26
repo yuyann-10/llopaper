@@ -6,13 +6,6 @@
   python figdata_and_plots.py --compute    # 仅计算, 保存到 figdata_cache.npz
   python figdata_and_plots.py --plot       # 仅绘图, 从缓存读取 (默认)
   python figdata_and_plots.py              # 若无缓存则计算+绘图, 有则仅绘图
-
-图3  残留率 vs 时间 (各解体点)
-图4  碎片分布演化快照 (4点 × 4时间切片)
-图5  危险区碎片数 + 平均相对速度 vs 时间
-图7  瞬时风险率 / 累积期望撞击数 / 碰撞概率 vs 时间
-图8  进入自由返回邻域百分比 vs 时间 (邻域)
-图9  沿航线危险区侵入空间热力图
 """
 import os, sys, argparse
 import numpy as np
@@ -23,20 +16,20 @@ import analysis_ldo as A
 
 CACHE = 'figdata_cache.npz'
 
-# ==================== 参数 (调整绘图参数无需重算) ====================
-N_SNAP    = 15_000      # 图4 快照碎片数
-N_TS      = 100_000     # 图5/7/9 时序碎片数 (10万够画图, 误差~0.3%)
-N_RET     = 50_000      # 图3 残留率碎片数
-N_VIC     = 100_000     # 图8 邻域统计碎片数
-N_WIN_FIG7 = 2000       # 图7 时间分辨率 (2000点足够平滑)
-WORST     = 2           # 最坏解体点 (0-based; 点3)
-DT_PEAK   = 7.8         # 峰值预警时间 (天)
+# ==================== 参数 ====================
+N_SNAP    = 15_000
+N_TS      = 100_000
+N_RET     = 50_000
+N_VIC     = 100_000
+N_WIN_FIG7 = 2000
+WORST     = 2
+DT_PEAK   = 7.8
 SNAP_DAYS = [1, 7, 13, 22]
 FIG4_PTS  = [0, 2, 3, 5]
-FIG4_LIM  = 5000.0      # 图4 视野半径 (km)
+FIG4_LIM  = 5000.0
 PTS       = [0, 1, 2, 3, 4, 5]
 VIC_TUBE_KM = 100.0
-VIC_DAYS = np.unique(np.concatenate([np.linspace(0, 1, 60), np.linspace(1, 13, 80)]))
+VIC_DAYS = np.unique(np.concatenate([np.linspace(0, 1, 60), np.linspace(1, 23, 120)]))
 VIC_BATCH = 2000
 
 D_EM = A.D_EM; VU = A.VU; tt_days = A.tt_days
@@ -56,7 +49,7 @@ def propagate(pos, vel, n, ts_days):
         out.append(jnp.where(jnp.isnan(tj), 1e6, tj))
     return np.asarray(jnp.concatenate(out))
 
-# ==================== 计算引擎 (仅 --compute 时运行) ====================
+# ==================== 计算引擎 ====================
 def _make_grid():
     tau = sc_t; abs_days = DT_PEAK + tau; keep = abs_days >= 0
     WIN_HALF = 0.08
@@ -67,7 +60,6 @@ def _make_grid():
     return grid, SC
 
 def compute_all():
-    """增量计算: 每算完一个点立即保存, 断点可续。"""
     d = {}
     if os.path.exists(CACHE):
         d = dict(np.load(CACHE, allow_pickle=True))
@@ -76,7 +68,6 @@ def compute_all():
     def save():
         np.savez(CACHE, **d)
 
-    # --- 图5/7/9: 每个点独立保存 ---
     grid, SC = _make_grid()
     SCp = jnp.asarray(SC[:, :3]); SCv = jnp.asarray(SC[:, 3:])
     ts = jnp.asarray(grid / tt_days)
@@ -126,7 +117,6 @@ def compute_all():
         save()
         print(f'    已保存 (P={d[f"pt{k}_P"][-1]:.3e})')
 
-    # --- 图9 counts (仅 WORST) ---
     if 'fig9_counts' not in d:
         print('  computing fig9 counts...')
         frags = np.empty((N_TS, 6))
@@ -143,7 +133,6 @@ def compute_all():
         d['fig9_counts'] = np.bincount(hit, minlength=N_WIN_FIG7).astype(float)
         save()
 
-    # --- 图8 邻域 ---
     if 'vic_frac' not in d:
         print('=== 计算图8 邻域数据 ===')
         sc_km = sc_state[:, :3] * D_EM
@@ -182,15 +171,16 @@ def compute_all():
     save()
     print(f'[saved] {CACHE}  ({os.path.getsize(CACHE)/1e6:.1f} MB)')
 
-# ==================== 绘图函数 (仅 --plot 时运行, 不重算) ====================
+# ==================== 绘图函数 ====================
 def plot_fig3(d):
-    plt.figure(figsize=(7, 5.5))
+    plt.figure(figsize=(8, 5.5))
+    plt.subplots_adjust(left=0.15, bottom=0.12)
     colors = plt.cm.viridis(np.linspace(0, 1, len(PTS)))
     for k in PTS:
         plt.plot(d[f'ret_t{k}'], d[f'ret_f{k}'] * 100, lw=1.5, color=colors[k], label=f'{k+1}')
     plt.axhline(70, ls='--', color='gray', lw=0.8)
-    plt.xlabel('time after breakup (days)')
-    plt.ylabel('Fraction of debris within 0.01 DU of Moon (%)')
+    plt.xlabel('time after breakup (days)', fontsize=20)
+    plt.ylabel('Fraction of debris within 0.01 DU\nof Moon (%)', fontsize=20)
     plt.ylim(70, 77)
     plt.legend(title='Breakup location', fontsize=9); plt.grid(alpha=0.3)
     plt.tight_layout(); plt.savefig('fig_paper3_retention.png', dpi=200)
@@ -223,16 +213,17 @@ def plot_fig4(d):
 
 def plot_fig5(d):
     tgrid = d['tgrid']; n_dz = d[f'pt{WORST}_n_dz']; vmean = d[f'pt{WORST}_vmean']
-    t_sec = tgrid * 86400  # 秒, 更直观
+    P = d[f'pt{WORST}_P']
+    t_sec = tgrid * 86400
     fig, ax = plt.subplots(figsize=(7.5, 4.6)); ax2 = ax.twinx()
 
-    ax.fill_between(t_sec, n_dz, alpha=0.2, color='C0')
-    ax.plot(t_sec, n_dz, 'C0', lw=1.5, label='fragments in DZ')
+    ax.fill_between(t_sec, P * 1e7, alpha=0.2, color='C0')
+    ax.plot(t_sec, P * 1e7, 'C0', lw=1.5, label='collision probability')
     mask = n_dz > 0
     ax2.plot(t_sec[mask], vmean[mask], 'C3o-', lw=1.8, ms=4, label='mean rel. velocity')
 
     ax.set_xlabel('time relative to perilune (seconds)')
-    ax.set_ylabel('fragments in danger zone', color='C0')
+    ax.set_ylabel('collision probability (×10⁻⁷)', color='C0')
     ax2.set_ylabel('mean relative velocity (km/s)', color='C3')
 
     active = np.where(n_dz > 0)[0]
@@ -243,7 +234,7 @@ def plot_fig5(d):
     if len(v_ok):
         ax2.set_ylim(0, np.ceil(v_ok.max()))
         ax2.set_yticks(np.arange(0, np.ceil(v_ok.max()) + 0.5, 0.5))
-    ax.set_ylim(0, n_dz.max() * 1.15)
+    ax.set_ylim(0, P.max() * 1e7 * 1.15)
 
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
@@ -254,30 +245,37 @@ def plot_fig5(d):
 
 def plot_fig7(d):
     tgrid = d['tgrid']
-    fig, axs = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
-    colors = ['C%d' % i for i in range(6)]
+    fig, axs = plt.subplots(3, 1, figsize=(8, 10), sharex=True)
+    colors = plt.cm.viridis(np.linspace(0, 1, len(PTS)))
     for k in PTS:
-        axs[0].semilogy(tgrid, d[f'pt{k}_cumE'] + 1e-30, colors[k], lw=1.2, label=f'{k+1}')
-        axs[1].plot(tgrid, d[f'pt{k}_P'], colors[k], lw=1.2, label=f'{k+1}')
-    axs[0].set_ylabel('cumulative E[impacts] (log)')
-    axs[1].set_ylabel('collision probability P')
-    axs[1].set_xlabel('time rel. perilune (days)')
-    for a in axs: a.grid(alpha=0.3); a.legend(fontsize=7, ncol=3)
-    n_dz = d[f'pt{WORST}_n_dz']; active = np.where(n_dz > 0)[0]
+        axs[0].plot(tgrid, d[f'pt{k}_risk'], color=colors[k], lw=1.2)
+        axs[1].semilogy(tgrid, d[f'pt{k}_cumE'] + 1e-30, color=colors[k], lw=1.2)
+        axs[2].plot(tgrid, d[f'pt{k}_P'], color=colors[k], lw=1.2)
+    axs[0].set_ylabel(r'$\dot{E}(t)$')
+    axs[1].set_ylabel(r'$E(t)$')
+    axs[2].set_ylabel(r'$P(t)$')
+    axs[2].set_xlabel('time rel. perilune (days)')
+    for a in axs:
+        a.grid(alpha=0.3)
+    from matplotlib.lines import Line2D
+    handles = [Line2D([0], [0], color=colors[k], lw=2) for k in PTS]
+    fig.legend(handles, [f'{k+1}' for k in PTS], title='Breakup location',
+               ncol=6, fontsize=10, title_fontsize=8, loc='upper center', bbox_to_anchor=(0.5, 0.995))
+    n_dz = d[f'pt{WORST}_n_dz']
+    active = np.where(n_dz > 0)[0]
     if len(active):
         span = tgrid[active[-1]] - tgrid[active[0]]
         pad = max(0.002, 0.15 * span)
-        axs[1].set_xlim(tgrid[active[0]] - pad, tgrid[active[-1]] + pad)
-    fig.tight_layout(); fig.savefig('fig_paper7_risk.png', dpi=200)
+        axs[2].set_xlim(tgrid[active[0]] - pad, tgrid[active[-1]] + pad)
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.savefig('fig_paper7_risk.png', dpi=200)
     print('[saved] fig_paper7_risk.png')
-
 def plot_fig8_vicinity(d):
     vic_days = d['vic_days']; frac = d['vic_frac']; tube = d['vic_tube_km']
     fig, ax = plt.subplots(figsize=(8, 4.6))
     ax.plot(vic_days, frac, 'C2', lw=1.4)
     ax.set_xlabel('time after breakup (days)')
-    ax.set_ylabel(f'fragments within {tube:.0f} km of free-return (%)')
-    ax.grid(alpha=0.3)
+    ax.set_ylabel(f'Percentage of fragments')
     early = vic_days <= 1
     if early.sum() > 2:
         axins = ax.inset_axes([0.48, 0.45, 0.48, 0.48])
@@ -288,22 +286,18 @@ def plot_fig8_vicinity(d):
     print('[saved] fig_paper8_vicinity.png  峰值=%.3f%% @ %.2fd' % (frac.max(), vic_days[int(frac.argmax())]))
 
 def plot_fig9(d):
-    import matplotlib.colors as mcolors
-    x, y = d['sc_pkm_x'], d['sc_pkm_y']; counts = d['fig9_counts']
-    fig, ax = plt.subplots(figsize=(7.6, 6.2))
-    ax.scatter(0, 0, c='k', marker='+', s=120, zorder=2, label='Moon center')
-    ax.plot(x, y, color='0.85', lw=0.8, zorder=1)
-    m = counts > 0
-    sc = ax.scatter(x[m], y[m], c=counts[m], cmap='hot_r', s=16, zorder=3,
-                    norm=mcolors.LogNorm(vmin=1, vmax=max(counts.max(), 1)))
-    nz = np.where(m)[0]
-    if len(nz):
-        ax.scatter(x[nz[0]], y[nz[0]], marker='>', c='g', s=90, zorder=5, label='intrusion entry')
-        ax.scatter(x[nz[-1]], y[nz[-1]], marker='s', c='b', s=60, zorder=5, label='intrusion exit')
-    fig.colorbar(sc, ax=ax, label='DZ-intrusion count (log)')
-    lim = 8000; ax.set_xlim(-lim, lim); ax.set_ylim(-lim, lim); ax.set_aspect('equal')
-    ax.set_xlabel('x (km, Moon)'); ax.set_ylabel('y (km, Moon)')
-    ax.legend(fontsize=8, loc='upper right')
+    tgrid = d['tgrid']; counts = d['fig9_counts']
+    t_sec = tgrid * 86400
+    m = counts > 1
+    fig, ax = plt.subplots(figsize=(8, 4.6))
+    ax.bar(t_sec[m], counts[m], width=(t_sec[1]-t_sec[0])*0.9, color='C3', alpha=0.7, edgecolor='C3')
+    ax.set_xlabel('time relative to perilune (seconds)')
+    ax.set_ylabel('Number of fragments \n per second')
+    ax.grid(True, alpha=0.3, axis='y')
+    if m.sum():
+        pad = (t_sec[m][-1] - t_sec[m][0]) * 0.15
+        ax.set_xlim(t_sec[m][0] - pad, t_sec[m][-1] + pad)
+        ax.set_ylim(0, counts[m].max() * 1.2)
     fig.tight_layout(); fig.savefig('fig_paper9_heatmap.png', dpi=200)
     print('[saved] fig_paper9_heatmap.png')
 
@@ -312,8 +306,20 @@ def plot_all():
         print(f'错误: {CACHE} 不存在, 请先运行 --compute')
         sys.exit(1)
     d = np.load(CACHE, allow_pickle=True)
+    needed = {'vic_frac', 'fig9_counts', 'pt0_P'}
+    if needed - set(d.keys()):
+        print('缓存数据不完整, 自动补算...')
+        d.close()
+        compute_all()
+        d = np.load(CACHE, allow_pickle=True)
+    needed = {'vic_frac', 'fig9_counts', 'pt0_P'}
+    if needed - set(d.keys()):
+        print('缓存数据不完整, 自动补算...')
+        d.close()
+        compute_all()
+        d = np.load(CACHE, allow_pickle=True)
     print(f'加载缓存: {CACHE}  (DT_PEAK={d.get("DT_PEAK","?")}d)')
-    # plot_fig3(d); plot_fig4(d); plot_fig5(d); plot_fig7(d)
+    # plot_fig3(d); plot_fig4(d);  # 已单独出图, 这里跳过
     plot_fig5(d); plot_fig7(d)
     plot_fig8_vicinity(d); plot_fig9(d)
     print('完成: 图5/7/8(邻域)/9')
