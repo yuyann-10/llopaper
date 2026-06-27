@@ -213,17 +213,17 @@ def plot_fig4(d):
 
 def plot_fig5(d):
     tgrid = d['tgrid']; n_dz = d[f'pt{WORST}_n_dz']; vmean = d[f'pt{WORST}_vmean']
-    P = d[f'pt{WORST}_P']
+    frac_dz = n_dz / A.N_PHYS * 100
     t_sec = tgrid * 86400
     fig, ax = plt.subplots(figsize=(7.5, 4.6)); ax2 = ax.twinx()
 
-    ax.fill_between(t_sec, P * 1e7, alpha=0.2, color='C0')
-    ax.plot(t_sec, P * 1e7, 'C0', lw=1.5, label='collision probability')
     mask = n_dz > 0
+    ax.fill_between(t_sec[mask], frac_dz[mask], alpha=0.25, color='C0')
+    ax.plot(t_sec[mask], frac_dz[mask], 'C0', lw=1.5, label='fragments in DZ')
     ax2.plot(t_sec[mask], vmean[mask], 'C3o-', lw=1.8, ms=4, label='mean rel. velocity')
 
     ax.set_xlabel('time relative to perilune (seconds)')
-    ax.set_ylabel('collision probability (×10⁻⁷)', color='C0')
+    ax.set_ylabel('fragments in danger zone (%)', color='C0')
     ax2.set_ylabel('mean relative velocity (km/s)', color='C3')
 
     active = np.where(n_dz > 0)[0]
@@ -234,7 +234,7 @@ def plot_fig5(d):
     if len(v_ok):
         ax2.set_ylim(0, np.ceil(v_ok.max()))
         ax2.set_yticks(np.arange(0, np.ceil(v_ok.max()) + 0.5, 0.5))
-    ax.set_ylim(0, P.max() * 1e7 * 1.15)
+    ax.set_ylim(0, frac_dz[mask].max() * 1.15)
 
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
@@ -260,7 +260,7 @@ def plot_fig7(d):
     from matplotlib.lines import Line2D
     handles = [Line2D([0], [0], color=colors[k], lw=2) for k in PTS]
     fig.legend(handles, [f'{k+1}' for k in PTS], title='Breakup location',
-               ncol=6, fontsize=10, title_fontsize=8, loc='upper center', bbox_to_anchor=(0.5, 0.995))
+               ncol=6, fontsize=10, title_fontsize=12, loc='upper center', bbox_to_anchor=(0.5, 0.995))
     n_dz = d[f'pt{WORST}_n_dz']
     active = np.where(n_dz > 0)[0]
     if len(active):

@@ -95,8 +95,12 @@ def eval_point(pt_pos, pt_vel, sc_t, sc_state, dt_warning, n_sub):
     abs_days = dt_warning + tau
     keep = abs_days >= 0
     tau, abs_days = tau[keep], abs_days[keep]
-    # 重采样到 N_WIN 均匀
-    grid = np.linspace(abs_days.min(), abs_days.max(), N_WIN)
+    # 时间网格【集中到近月点 ±WIN_HALF】: 危险区穿越只发生在近月点附近(~±0.003d),
+    # 整条±4d均匀撒点会使 dt(230s)>遭遇时长(234s)而系统性高估~2.5×. 这里 dt~7s.
+    WIN_HALF = 0.12
+    g0 = max(dt_warning - WIN_HALF, abs_days.min())
+    g1 = min(dt_warning + WIN_HALF, abs_days.max())
+    grid = np.linspace(g0, g1, N_WIN)
     SC = np.column_stack([np.interp(grid, abs_days, sc_state[keep][:,k]) for k in range(6)])
     SCp, SCv = jnp.array(SC[:,:3]), jnp.array(SC[:,3:])
     save_ts = jnp.array(grid/tt_days)
