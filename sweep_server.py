@@ -31,5 +31,11 @@ for dt in DTS:
           % (dt, P, done[dt][1], done[dt][2], done[dt][3]), flush=True)
 
 print('=== 汇总 (Δt, P) ===', flush=True)
-for dt in sorted(done):
-    print('  Δt=%.2fd  P=%.4e' % (dt, done[dt][0]), flush=True)
+dts_s = sorted(done)
+arr = np.array([[d, done[d][0], done[d][1], done[d][2], done[d][3]] for d in dts_s])
+# 同时存干净数组(画图用) + done字典(断点续算用)
+np.savez(CKPT, done=np.array(done, dtype=object),
+         dt=arr[:, 0], P=arr[:, 1], P_lo=arr[:, 2], P_hi=arr[:, 3], hits=arr[:, 4])
+for d in dts_s:
+    print('  Δt=%.2fd  P=%.4e' % (d, done[d][0]), flush=True)
+print('[saved] sweep_server.npz  (dt, P, P_lo, P_hi, hits + done)', flush=True)
