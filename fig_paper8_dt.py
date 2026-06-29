@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 import os
 
 # ---- 载入数据 ----
-if os.path.exists('analysis_dt.npz'):
-    d = np.load('analysis_dt.npz')
+if os.path.exists('analysis_dt_corrected.npz'):
+    d = np.load('analysis_dt_corrected.npz')
     dt, P = d['dt'], d['P']
     P_lo = d.get('P_lo', None); P_hi = d.get('P_hi', None)
     mrvd  = float(d.get('marker_rvd',  0.0))
     mtli  = float(d.get('marker_tli',  2.6))
     mpark = float(d.get('marker_park', 23.0))
-    src = 'analysis_dt.npz'
+    src = 'analysis_dt_corrected.npz'
 else:
     raw = np.load('coarse_dt.npy')   # shape (N,2): Δt, P
     dt, P = raw[:,0], raw[:,1]
