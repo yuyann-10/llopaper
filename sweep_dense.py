@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""密集 Δt 扫描 0→3.1d (步长0.1d)。
+"""Δt 扫描 -3→3.5d: 正段 0→3.5d 密(0.1d, 奔月段+安全余量), 负段 -3→0 稀(返回段, 多为P=0)。
 场景: 着陆器在 LDO 解体, 而载人飞船【已发射/在自由返回途中】→ 无法取消, 研究单次近月穿越碰撞。
 "飞船已发射" 等价 Δt ≤ 自由返回奔月段 2.911 d (Δt=0 解体在到达时, =2.911d 解体在发射时);
 Δt 超过奔月段则飞船尚未发射、直接不发射 → 无碰撞。故物理相关区间为 Δt∈[0, ~2.9 d]。
@@ -12,7 +12,9 @@ import analysis_ldo as A
 fr = np.load('fragments_ldo.npz'); POS, VEL = fr['pos_nd'], fr['vel_nd']
 sc_t, sc_state = A.load_sc()
 n = 500_000
-DTS = [round(float(x), 2) for x in np.arange(0.0, 3.501, 0.1)]   # 0.0,0.1,...,3.4,3.5 (3.1d+安全余量)
+NEG = [-3.0,-2.5,-2.0,-1.5,-1.0,-0.5,-0.3,-0.2,-0.1,-0.05]        # 返回段(较稀); 飞船已过近月点
+POS_ = [round(float(x), 2) for x in np.arange(0.0, 3.501, 0.1)]   # 0.0,0.1,...,3.5 (奔月段+安全余量)
+DTS = sorted(set([round(x,2) for x in NEG] + POS_))
 CKPT = 'sweep_dense.npz'
 
 done = {}
@@ -29,6 +31,9 @@ if os.path.exists(CKPT):
 for dt in DTS:
     if dt in done:
         print('skip Δt=%.2fd (已有 P=%.4e)' % (dt, done[dt][0]), flush=True); continue
+    if dt < -0.1:        # 穿越窗(±0.12d)整体在解体前 -> 飞船已过近月点, P=0
+        done[dt] = (0.0, 0.0, 0.0, 0); np.savez(CKPT, done=np.array(done, dtype=object))
+        print('Δt=%.2fd  P=0 (飞船已过近月点, 返回段)' % dt, flush=True); continue
     e = A.eval_point(POS[2], VEL[2], sc_t, sc_state, dt, n)
     P = 1 - np.exp(-(A.N_PHYS/n)*e.sum())
     rng = np.random.default_rng(0)
