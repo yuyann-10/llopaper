@@ -12,7 +12,7 @@ import analysis_ldo as A
 fr = np.load('fragments_ldo.npz'); POS, VEL = fr['pos_nd'], fr['vel_nd']
 sc_t, sc_state = A.load_sc()
 n = 500_000
-DTS = [round(float(x), 2) for x in np.arange(0.0, 3.101, 0.1)]   # 0.0,0.1,...,3.0,3.1
+DTS = [round(float(x), 2) for x in np.arange(0.0, 3.501, 0.1)]   # 0.0,0.1,...,3.4,3.5 (3.1d+安全余量)
 CKPT = 'sweep_dense.npz'
 
 done = {}
