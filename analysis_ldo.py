@@ -88,18 +88,25 @@ def load_sc():
     return t, np.hstack([S, Vv])
 
 
-def eval_point(pt_pos, pt_vel, sc_t, sc_state, dt_warning, n_sub):
-    """返回 per-fragment 期望撞击贡献 e_i[n_sub]。"""
+def eval_point(pt_pos, pt_vel, sc_t, sc_state, dt_warning, n_sub, win_half=0.12):
+    """返回 per-fragment 期望撞击贡献 e_i[n_sub]。
+    win_half=0.12: 近月点±0.12d 细网格(解析穿越, Δt>=0用, dt~7s);
+    win_half=None: 全 post-breakup 轨迹(算返回段/尾部微弱通量, Δt<0用; 返回段平滑无尖峰)。"""
     # 航天器: 近月点对齐到绝对时间 dt_warning
     tau = sc_t                                         # 相对近月点 (天)
     abs_days = dt_warning + tau
     keep = abs_days >= 0
     tau, abs_days = tau[keep], abs_days[keep]
-    # 时间网格【集中到近月点 ±WIN_HALF】: 危险区穿越只发生在近月点附近(~±0.003d),
-    # 整条±4d均匀撒点会使 dt(230s)>遭遇时长(234s)而系统性高估~2.5×. 这里 dt~7s.
-    WIN_HALF = 0.12
-    g0 = max(dt_warning - WIN_HALF, abs_days.min())
-    g1 = min(dt_warning + WIN_HALF, abs_days.max())
+    if len(abs_days) < 2:                              # 整条轨迹都在解体前 -> 无贡献
+        return np.zeros(n_sub)
+    # 危险区穿越只发生在近月点附近(~±0.003d); ±0.12d 细网格 dt~7s 解析它(避免粗dt高估)。
+    if win_half is None:                               # 全 post-breakup 轨迹(返回段微弱通量)
+        g0, g1 = abs_days.min(), abs_days.max()
+    else:
+        g0 = max(dt_warning - win_half, abs_days.min())
+        g1 = min(dt_warning + win_half, abs_days.max())
+    if g1 <= g0:
+        return np.zeros(n_sub)
     grid = np.linspace(g0, g1, N_WIN)
     SC = np.column_stack([np.interp(grid, abs_days, sc_state[keep][:,k]) for k in range(6)])
     SCp, SCv = jnp.array(SC[:,:3]), jnp.array(SC[:,3:])

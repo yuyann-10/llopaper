@@ -31,10 +31,8 @@ if os.path.exists(CKPT):
 for dt in DTS:
     if dt in done:
         print('skip Δt=%.2fd (已有 P=%.4e)' % (dt, done[dt][0]), flush=True); continue
-    if dt < -0.1:        # 穿越窗(±0.12d)整体在解体前 -> 飞船已过近月点, P=0
-        done[dt] = (0.0, 0.0, 0.0, 0); np.savez(CKPT, done=np.array(done, dtype=object))
-        print('Δt=%.2fd  P=0 (飞船已过近月点, 返回段)' % dt, flush=True); continue
-    e = A.eval_point(POS[2], VEL[2], sc_t, sc_state, dt, n)
+    wh = None if dt < 0 else 0.12     # Δt<0: 全post-breakup轨迹算返回段微弱通量; >=0: 近月点细网格
+    e = A.eval_point(POS[2], VEL[2], sc_t, sc_state, dt, n, win_half=wh)
     P = 1 - np.exp(-(A.N_PHYS/n)*e.sum())
     rng = np.random.default_rng(0)
     Pb = np.array([1-np.exp(-(A.N_PHYS/n)*e[rng.integers(0, n, n)].sum()) for _ in range(300)])
