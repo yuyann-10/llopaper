@@ -27,22 +27,22 @@ def run(pt, dt, wh):
 def save():
     np.savez(CKPT, done=np.array(done, dtype=object))
 
-# --- 负段: 6点全扫, win=None (真算返回段, 预计各点都~0) ---
-for pt in PTS:
-    for dt in DT_NEG:
-        k = (pt, round(dt, 2))
-        if k in done:
-            print('skip 点%d Δt=%.2f (P=%.3e)' % (pt+1, dt, done[k][0]), flush=True); continue
-        done[k] = run(pt, dt, None); save()
-        print('RES 点%d Δt=%6.2f  P=%.3e  命中=%d' % (pt+1, dt, done[k][0], done[k][1]), flush=True)
-
-# --- 正段: 6点 × 粗Δt, win=0.12 ---
+# --- 正段先跑(含0.1d尖峰, 早出最坏点): 6点 × Δt, win=0.12 ---
 for pt in PTS:
     for dt in DT_POS:
         k = (pt, round(dt, 2))
         if k in done:
             print('skip 点%d Δt=%.2f (P=%.3e)' % (pt+1, dt, done[k][0]), flush=True); continue
         done[k] = run(pt, dt, 0.12); save()
+        print('RES 点%d Δt=%6.2f  P=%.3e  命中=%d' % (pt+1, dt, done[k][0], done[k][1]), flush=True)
+
+# --- 负段后跑(返回段, 预计各点都~0): 6点 × DT_NEG, win=None ---
+for pt in PTS:
+    for dt in DT_NEG:
+        k = (pt, round(dt, 2))
+        if k in done:
+            print('skip 点%d Δt=%.2f (P=%.3e)' % (pt+1, dt, done[k][0]), flush=True); continue
+        done[k] = run(pt, dt, None); save()
         print('RES 点%d Δt=%6.2f  P=%.3e  命中=%d' % (pt+1, dt, done[k][0], done[k][1]), flush=True)
 
 # --- 汇总: 各点正段峰值 + 本段最坏点 ---
